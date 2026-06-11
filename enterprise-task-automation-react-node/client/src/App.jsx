@@ -10,7 +10,7 @@ import {
   XCircle
 } from "lucide-react";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+const API_URL = import.meta.env.VITE_API_URL || "";
 const tokenKey = "eta_token";
 const userKey = "eta_user";
 

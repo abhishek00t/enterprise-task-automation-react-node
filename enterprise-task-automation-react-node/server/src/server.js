@@ -13,7 +13,7 @@ const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 
 initDatabase();
 
-app.use(cors({ origin: CLIENT_ORIGIN }));
+app.use(cors({ origin: process.env.VERCEL ? true : CLIENT_ORIGIN }));
 app.use(express.json());
 
 function publicUser(user) {
@@ -210,6 +210,10 @@ app.use((req, res) => {
   res.status(404).json({ error: "Route not found." });
 });
 
-app.listen(PORT, HOST, () => {
-  console.log(`Enterprise Task Automation API running on http://${HOST}:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, HOST, () => {
+    console.log(`Enterprise Task Automation API running on http://${HOST}:${PORT}`);
+  });
+}
+
+module.exports = app;

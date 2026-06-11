@@ -1,12 +1,21 @@
+const fs = require("fs");
 const path = require("path");
-const Database = require("better-sqlite3");
+const { DatabaseSync } = require("node:sqlite");
 const bcrypt = require("bcryptjs");
 
-const dbPath = path.join(__dirname, "..", "data", "automation.db");
-const db = new Database(dbPath);
+let dbPath;
+if (process.env.VERCEL) {
+  dbPath = "/tmp/automation.db";
+} else {
+  const dataDir = path.join(__dirname, "..", "data");
+  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+  dbPath = path.join(dataDir, "automation.db");
+}
 
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
+const db = new DatabaseSync(dbPath);
+
+db.exec("PRAGMA journal_mode = WAL");
+db.exec("PRAGMA foreign_keys = ON");
 
 function initDatabase() {
   db.exec(`
@@ -39,9 +48,9 @@ function initDatabase() {
     );
   `);
 
-  const userCount = db.prepare("SELECT COUNT(*) AS total FROM users").get().total;
+  const row = db.prepare("SELECT COUNT(*) AS total FROM users").get();
 
-  if (userCount === 0) {
+  if (row.total === 0) {
     seedUsers();
     seedTasks();
   }
@@ -54,25 +63,12 @@ function seedUsers() {
     VALUES (@name, @email, @passwordHash, @role, @department)
   `);
 
-  const seed = db.transaction(() => {
-    insertUser.run({
-      name: "System Admin",
-      email: "admin@enterprise.com",
-      passwordHash,
-      role: "Admin",
-      department: "Operations"
-    });
-
-    insertUser.run({
-      name: "Task Manager",
-      email: "manager@enterprise.com",
-      passwordHash,
-      role: "Manager",
-      department: "Delivery"
-    });
+  db.exec("BEGIN");
+  try {
+    insertUser.run({ name: "System Admin", email: "admin@enterprise.com", passwordHash, role: "Admin", department: "Operations" });
+    insertUser.run({ name: "Task Manager", email: "manager@enterprise.com", passwordHash, role: "Manager", department: "Delivery" });
 
     const departments = ["Finance", "HR", "IT", "Sales", "Support", "Delivery"];
-
     for (let index = 1; index <= 50; index += 1) {
       insertUser.run({
         name: `Employee ${index}`,
@@ -82,9 +78,11 @@ function seedUsers() {
         department: departments[index % departments.length]
       });
     }
-  });
-
-  seed();
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
 }
 
 function seedTasks() {
@@ -94,26 +92,12 @@ function seedTasks() {
 
   const insertTask = db.prepare(`
     INSERT INTO tasks (
-      title,
-      description,
-      priority,
-      status,
-      requested_by,
-      assigned_to,
-      approved_by,
-      due_date,
-      decision_note
+      title, description, priority, status,
+      requested_by, assigned_to, approved_by, due_date, decision_note
     )
     VALUES (
-      @title,
-      @description,
-      @priority,
-      @status,
-      @requestedBy,
-      @assignedTo,
-      @approvedBy,
-      @dueDate,
-      @decisionNote
+      @title, @description, @priority, @status,
+      @requestedBy, @assignedTo, @approvedBy, @dueDate, @decisionNote
     )
   `);
 
@@ -142,7 +126,4 @@ function seedTasks() {
   });
 }
 
-module.exports = {
-  db,
-  initDatabase
-};
+module.exports = { db, initDatabase };

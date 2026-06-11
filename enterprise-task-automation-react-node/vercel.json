@@ -1,0 +1,13 @@
+{
+  "buildCommand": "npm install --prefix client && npm run build --prefix client",
+  "outputDirectory": "client/dist",
+  "framework": null,
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/index" }
+  ],
+  "functions": {
+    "api/index.js": {
+      "runtime": "nodejs22.x"
+    }
+  }
+}
